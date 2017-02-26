@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/blind-oracle/go-radius"
+	"github.com/cuu/radius"
 )
 
 const usage = `

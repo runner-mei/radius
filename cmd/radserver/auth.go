@@ -9,7 +9,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/blind-oracle/go-radius"
+	"github.com/cuu/radius"
 )
 
 var secret = flag.String("secret", "testing123", "shared RADIUS secret between clients and server")
