@@ -1,4 +1,4 @@
-package radius // import "layeh.com/radius"
+package radius
 
 import (
 	"net"
@@ -19,10 +19,9 @@ type Client struct {
 	DialTimeout  time.Duration
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
-
-	// Interval on which to resend packet.
-	Retry time.Duration
 }
+
+// TODO: add ability to resend packets every X seconds
 
 // Exchange sends the packet to the given server address and waits for a
 // response. nil and an error is returned upon failure.
@@ -57,24 +56,9 @@ func (c *Client) Exchange(packet *Packet, addr string) (*Packet, error) {
 		writeTimeout = defaultTimeout
 	}
 	conn.SetWriteDeadline(time.Now().Add(writeTimeout))
-
-	conn.Write(wire)
-
-	if c.Retry > 0 {
-		retry := time.NewTicker(c.Retry)
-		end := make(chan struct{})
-		defer close(end)
-		go func() {
-			for {
-				select {
-				case <-retry.C:
-					conn.Write(wire)
-				case <-end:
-					retry.Stop()
-					return
-				}
-			}
-		}()
+	if _, err := conn.Write(wire); err != nil {
+		conn.Close()
+		return nil, err
 	}
 
 	var incoming [maxPacketSize]byte

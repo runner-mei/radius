@@ -1,4 +1,4 @@
-package radius // import "layeh.com/radius"
+package radius
 
 import (
 	"encoding/binary"
@@ -23,6 +23,15 @@ var (
 	// []byte
 	AttributeUnknown AttributeCodec
 )
+
+func init() {
+	AttributeText = attributeText{}
+	AttributeString = attributeString{}
+	AttributeAddress = attributeAddress{}
+	AttributeInteger = attributeInteger{}
+	AttributeTime = attributeTime{}
+	AttributeUnknown = attributeString{}
+}
 
 type attributeText struct{}
 

@@ -1,4 +1,4 @@
-package main // import "layeh.com/radius/cmd/radtest"
+package main
 
 import (
 	"flag"
@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"layeh.com/radius"
+	"github.com/blind-oracle/go-radius"
 )
 
 const usage = `

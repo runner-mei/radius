@@ -1,4 +1,4 @@
-package main // import "layeh.com/radius/cmd/radserver"
+package main
 
 import (
 	"flag"
@@ -9,12 +9,16 @@ import (
 	"strings"
 	"unicode"
 
-	"layeh.com/radius"
+	"github.com/blind-oracle/go-radius"
 )
 
-var secret = flag.String("secret", "", "shared RADIUS secret between clients and server")
+var secret = flag.String("secret", "testing123", "shared RADIUS secret between clients and server")
 var command string
 var arguments []string
+
+func acct_handler(w radius.ResponseWriter, p *radius.Packet) {
+	
+}
 
 func handler(w radius.ResponseWriter, p *radius.Packet) {
 	username, password, ok := p.PAP()
@@ -22,7 +26,7 @@ func handler(w radius.ResponseWriter, p *radius.Packet) {
 		w.AccessReject()
 		return
 	}
-	log.Printf("%s requesting access (%s #%d)\n", username, w.RemoteAddr(), p.Identifier)
+	log.Printf("%s with %s requesting access (%s #%d)\n", username,password, w.RemoteAddr(), p.Identifier)
 
 	cmd := exec.Command(command, arguments...)
 
@@ -50,10 +54,7 @@ func handler(w radius.ResponseWriter, p *radius.Packet) {
 
 	cmd.Env = append(cmd.Env, "RADIUS_USERNAME="+username, "RADIUS_PASSWORD="+password)
 
-	output, err := cmd.Output()
-	if err != nil {
-		log.Printf("handler error: %s\n", err)
-	}
+	output, _ := cmd.Output()
 
 	var attributes []*radius.Attribute
 	if len(output) > 0 {
@@ -62,7 +63,7 @@ func handler(w radius.ResponseWriter, p *radius.Packet) {
 		}
 	}
 
-	if cmd.ProcessState != nil && cmd.ProcessState.Success() {
+	if cmd.ProcessState.Success() {
 		log.Printf("%s accepted (%s #%d)\n", username, w.RemoteAddr(), p.Identifier)
 		w.AccessAccept(attributes...)
 	} else {
@@ -72,20 +73,19 @@ func handler(w radius.ResponseWriter, p *radius.Packet) {
 }
 
 const usage = `
-program is executed when an Access-Request RADIUS packet is received. If
-program exits sucessfully, an Access-Accept response is sent, otherwise, an
-Access-Reject is sent. If standard out is non-empty, it is included as an
-Reply-Message attribute in the response.
+<./auth -secret testing123 echo "fuck you"
+>radtest 888 888 localhost 0 testing123
+>
+>rad_recv: Access-Accept packet from host 127.0.0.1 port 1812, id=2, length=31
+>	Reply-Message = "fuck you\n"
+or
+ ./auth -secret testing123 ./simple-auth
+./auth -secret testing123 ./simple-auth 888 888  
+in simple-auth, I preset the username and password 
 
-Any known RADIUS attribute will be added to the process's environment. The
-attribute name undergoes the following conversion before being set:
- - it is prefixed with RADIUS_
- - all letters of the attribute name are changed to uppercase
- - any non-digit and non-letter character is replaced with underscore (_)
-For example, the NAS-IP-Address attribute will be named RADIUS_NAS_IP_ADDRESS.
+把得到的用户名和密码,变成os.Env中的RADIUS-USERNAMExxxxx 
+然后simple-auth 被os.exec,之后对比环境变量,是否是$1 和$2 所指定的用户名密码
 
-Two special environment variables are also include: RADIUS_USERNAME and
-RADIUS_PASSWORD, which hold the username and password, respectively.
 `
 
 func main() {
@@ -115,4 +115,17 @@ func main() {
 	if err := server.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
+
+	log.Println("rad acct server starting")
+
+	acct_server := radius.Server{
+		Handler:	 radius.HandlerFunc(acct_handler),
+		Secret:		[]byte(*secret),
+		Dictionary: radius.Builtin,
+		Addr:		":1813",
+	}
+	if err := acct_server.ListenAndServe(); err != nil{
+		log.Fatal(err)
+	}
+
 }

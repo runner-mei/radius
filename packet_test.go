@@ -1,9 +1,11 @@
-package radius // import "layeh.com/radius"
+package radius_test
 
 import (
 	"bytes"
 	"net"
 	"testing"
+
+	"github.com/layeh/radius"
 )
 
 func Test_RFC2865_7_1(t *testing.T) {
@@ -19,11 +21,11 @@ func Test_RFC2865_7_1(t *testing.T) {
 		0x01, 0x10, 0x05, 0x06, 0x00, 0x00, 0x00, 0x03,
 	}
 
-	p, err := Parse(request, secret, Builtin)
+	p, err := radius.Parse(request, secret, radius.Builtin)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Code != CodeAccessRequest {
+	if p.Code != radius.CodeAccessRequest {
 		t.Fatal("expecting Code = PacketCodeAccessRequest")
 	}
 	if p.Identifier != 0 {
@@ -65,8 +67,8 @@ func Test_RFC2865_7_1(t *testing.T) {
 		0x0e, 0x06, 0xc0, 0xa8, 0x01, 0x03,
 	}
 
-	q := Packet{
-		Code:          CodeAccessAccept,
+	q := radius.Packet{
+		Code:          radius.CodeAccessAccept,
 		Identifier:    p.Identifier,
 		Authenticator: p.Authenticator,
 		Secret:        secret,
@@ -101,12 +103,12 @@ func Test_RFC2865_7_2(t *testing.T) {
 		0x02, 0x07, 0x06, 0x00, 0x00, 0x00, 0x01,
 	}
 
-	p, err := Parse(request, secret, Builtin)
+	p, err := radius.Parse(request, secret, radius.Builtin)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if p.Code != CodeAccessRequest {
+	if p.Code != radius.CodeAccessRequest {
 		t.Fatal("expecting code access request")
 	}
 	if p.Identifier != 1 {
@@ -126,37 +128,5 @@ func Test_RFC2865_7_2(t *testing.T) {
 	}
 	if p.Value("Framed-Protocol").(uint32) != uint32(1) {
 		t.Fatal("expecting Framed-Protocol = 1")
-	}
-}
-
-func TestPasswords(t *testing.T) {
-	passwords := []string{
-		"",
-		"qwerty",
-		"helloworld1231231231231233489hegufudhsgdsfygdf8g",
-	}
-
-	for _, password := range passwords {
-		secret := []byte("xyzzy5461")
-
-		r := New(CodeAccessRequest, secret)
-		if r == nil {
-			t.Fatal("could not create new RADIUS packet")
-		}
-		r.Add("User-Password", password)
-
-		b, err := r.Encode()
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		q, err := Parse(b, secret, Builtin)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if s := q.String("User-Password"); s != password {
-			t.Fatalf("incorrect User-Password (expecting %q, got %q)", password, s)
-		}
 	}
 }

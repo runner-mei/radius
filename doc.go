@@ -31,7 +31,7 @@
 //  Framed-IPX-Network        23  net.IP
 //  State                     24  []byte
 //  Class                     25  []byte
-//  Vendor-Specific           26  VendorSpecific
+//  Vendor-Specific           26  []byte
 //  Session-Timeout           27  uint32
 //  Idle-Timeout              28  uint32
 //  Termination-Action        29  uint32
@@ -64,4 +64,4 @@
 //  Acct-Terminate-Cause   49  uint32
 //  Acct-Multi-Session-Id  50  string
 //  Acct-Link-Count        51  uint32
-package radius // import "layeh.com/radius"
+package radius

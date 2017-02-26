@@ -1,4 +1,4 @@
-package radius // import "layeh.com/radius"
+package radius
 
 import (
 	"bytes"
@@ -182,6 +182,8 @@ func (p *Packet) Attr(name string) *Attribute {
 //
 //  - If no such attribute exists with the given dictionary name, "" is
 //    returned
+//  - If the attribute's Codec implements AttributeStringer,
+//    AttributeStringer.String(value) is returned
 //  - If the value implements fmt.Stringer, value.String() is returned
 //  - If the value is string, itself is returned
 //  - If the value is []byte, string(value) is returned
@@ -192,6 +194,12 @@ func (p *Packet) String(name string) string {
 		return ""
 	}
 	value := attr.Value
+
+	if codec := p.Dictionary.Codec(attr.Type); codec != nil {
+		if stringer, ok := codec.(AttributeStringer); ok {
+			return stringer.String(value)
+		}
+	}
 
 	if stringer, ok := value.(interface {
 		String() string
@@ -228,6 +236,15 @@ func (p *Packet) AddAttr(attribute *Attribute) {
 func (p *Packet) Set(name string, value interface{}) error {
 	for _, attr := range p.Attributes {
 		if attrName, ok := p.Dictionary.Name(attr.Type); ok && attrName == name {
+			codec := p.Dictionary.Codec(attr.Type)
+			if transformer, ok := codec.(AttributeTransformer); ok {
+				transformed, err := transformer.Transform(value)
+				if err != nil {
+					return err
+				}
+				attr.Value = transformed
+				return nil
+			}
 			attr.Value = value
 			return nil
 		}
@@ -238,8 +255,8 @@ func (p *Packet) Set(name string, value interface{}) error {
 // PAP returns the User-Name and User-Password attributes of an Access-Request
 // packet.
 //
-// If the packet does not contain a User-Password attribute, the password is set
-// to the empty string.
+// If packet's code is Access-Request, and the packet has a User-Name and
+// User-Password attribute, ok is true. Otherwise, it is false.
 func (p *Packet) PAP() (username, password string, ok bool) {
 	if p.Code != CodeAccessRequest {
 		return
@@ -250,9 +267,7 @@ func (p *Packet) PAP() (username, password string, ok bool) {
 	}
 	pass := p.Value("User-Password")
 	if pass == nil {
-		// Free RADIUS's radtest does not send a password attribute if
-		// it is the empty string.
-		pass = ""
+		return
 	}
 	if userStr, valid := user.(string); valid {
 		username = userStr
@@ -299,7 +314,7 @@ func (p *Packet) Encode() ([]byte, error) {
 	binary.Write(&buffer, binary.BigEndian, uint16(length))
 
 	switch p.Code {
-	case CodeAccessRequest:
+	case CodeAccessRequest, CodeStatusServer:
 		buffer.Write(p.Authenticator[:])
 	case CodeAccessAccept, CodeAccessReject, CodeAccountingRequest, CodeAccountingResponse, CodeAccessChallenge:
 		hash := md5.New()
