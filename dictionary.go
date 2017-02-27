@@ -44,7 +44,9 @@ func (d *Dictionary) Register(name string, t byte, codec AttributeCodec) error {
 	d.mu.Lock()
 	if d.values == nil {
 		d.values = make(map[string]*dictAttr)
-	  d.values[d.Vendor] = &dictAttr{}
+	}
+	if d.values[d.Vendor] ==  nil {
+		d.values[d.Vendor]  = &dictAttr{}
 	}
 
 	if d.Values().attributesByType[t] != nil {
