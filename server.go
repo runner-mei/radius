@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"sync"
+	"fmt"
 )
 
 // Handler is a value that can handle a server's RADIUS packet event.
@@ -20,6 +21,7 @@ type HandlerFunc func(w ResponseWriter, p *Packet)
 func (h HandlerFunc) ServeRadius(w ResponseWriter, p *Packet) {
 	h(w, p)
 }
+
 
 // ResponseWriter is used by Handler when replying to a RADIUS packet.
 type ResponseWriter interface {
@@ -126,6 +128,7 @@ type Server struct {
 	
 	// Client->Secret mapping
 	ClientsMap map[string]string
+	clientIP []string
 	ClientNets []net.IPNet
 	ClientSecrets []string
 	
@@ -138,6 +141,51 @@ type Server struct {
 	// Listener
 	listener *net.UDPConn
 }
+
+func (s *Server) ResetClientNets() error {
+	
+	s.ClientNets = nil
+	s.ClientSecrets = nil
+	
+	if s.ClientsMap != nil {
+		for k, v := range s.ClientsMap {
+				
+			_, subnet, err := net.ParseCIDR(k)
+			if err != nil {
+				return errors.New("Unable to parse CIDR or IP " + k)
+			}
+			
+			s.ClientNets = append(s.ClientNets, *subnet)
+			s.ClientSecrets = append(s.ClientSecrets, v)
+		}
+	}
+
+	return nil
+}
+
+
+func (s *Server) CheckClientsMap() error {
+	
+	if s.ClientsMap != nil {
+		for k, _ := range s.ClientsMap {
+			ip := net.ParseIP(k)
+			if ip == nil {
+				return errors.New("Not legal Clients IP address")
+			}
+		}
+	}
+
+	return nil
+}
+
+func (s *Server) AddClientsMap(m map[string]string ) {
+	if s.ClientsMap == nil  && len(m) > 0 {
+		s.ClientsMap = m
+	//	s.ResetClientNets()
+	}
+
+}
+
 
 // ListenAndServe starts a RADIUS server on the address given in s.
 func (s *Server) ListenAndServe() error {
@@ -169,15 +217,14 @@ func (s *Server) ListenAndServe() error {
 	}
 	
 	if s.ClientsMap != nil {
-	    for k, v := range s.ClientsMap {
-		_, subnet, err := net.ParseCIDR(k)
+		// double check, either IP or IPNet range 
+		err =  s.ResetClientNets()
 		if err != nil {
-		    return errors.New("Unable to parse CIDR " + k)
+			err = s.CheckClientsMap()
+			if err != nil {
+				return err
+			}
 		}
-		
-		s.ClientNets = append(s.ClientNets, *subnet)
-		s.ClientSecrets = append(s.ClientSecrets, v)
-	    }
 	}
 	
 	type activeKey struct {
@@ -206,6 +253,25 @@ func (s *Server) ListenAndServe() error {
 			secret := s.Secret
 			
 			log.Println("Remote IP: ",remoteAddr.IP)
+
+
+			legal := false
+
+			
+			if s.ClientsMap[ fmt.Sprintf("%v",remoteAddr.IP)] != "" {
+				legal = true
+				secret = []byte( s.ClientsMap[ fmt.Sprintf("%v",remoteAddr.IP) ] )
+			}else {
+
+				log.Println( s.ClientsMap ,fmt.Sprintf("%v",remoteAddr.IP))
+				//conn.Close()
+				
+			}
+			
+			if legal == false {
+				log.Println(remoteAddr.IP," inlegal")
+				return
+			}
 			
 			if s.ClientNets != nil {
 			    log.Println(remoteAddr.IP)
