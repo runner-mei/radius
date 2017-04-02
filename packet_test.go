@@ -5,7 +5,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/layeh/radius"
+	"github.com/runner-mei/radius"
 )
 
 func Test_Huawei(t *testing.T) {
@@ -31,28 +31,30 @@ func Test_Huawei(t *testing.T) {
 		t.Fatal(err)
 	}
 	if p.Code != radius.CodeAccessRequest {
-		t.Fatal("expecting Code = PacketCodeAccessRequest")
+		t.Error("expecting Code = PacketCodeAccessRequest")
 	}
-	if p.Identifier != 0 {
-		t.Fatal("expecting Identifier = 0")
+	if p.Identifier != 3 {
+		t.Error("expecting Identifier = 0, actual is", p.Identifier)
 	}
-	if len(p.Attributes) != 4 {
-		t.Fatal("expecting 4 attributes")
+	if len(p.Attributes) != 9 {
+		t.Error("expecting 4 attributes, actual is", len(p.Attributes))
 	}
-	if p.String("User-Name") != "nemo" {
-		t.Fatal("expecting User-Name = nemo")
+
+	for k, v := range p.GetAttributes() {
+		t.Log(k, v)
+	}
+
+	if p.String("User-Name") != "201713893" {
+		t.Error("expecting User-Name = 201713893")
 	}
 	if p.String("User-Password") != "arctangent" {
-		t.Fatal("expecting User-Password = arctangent")
+		t.Error("expecting User-Password = arctangent, actual is", p.String("User-Password"))
 	}
 	if username, password, ok := p.PAP(); !ok || username != "nemo" || password != "arctangent" {
-		t.Fatal("PAP values do not match attributes")
+		t.Error("PAP values do not match attributes")
 	}
-	if ip := p.Value("NAS-IP-Address").(net.IP); !ip.Equal(net.ParseIP("192.168.1.16")) {
-		t.Fatal("expecting NAS-IP-Address = 192.168.1.16")
-	}
-	if p.Value("NAS-Port").(uint32) != uint32(3) {
-		t.Fatal("expecting NAS-Port = 3")
+	if ip := p.Value("NAS-IP-Address").(net.IP); !ip.Equal(net.ParseIP("192.168.1.182")) {
+		t.Error("expecting NAS-IP-Address = 192.168.1.182, actual is", ip.String())
 	}
 
 	{
@@ -64,7 +66,6 @@ func Test_Huawei(t *testing.T) {
 			t.Fatal("expecting p.Encode() and request to equal")
 		}
 	}
-
 }
 
 func Test_RFC2865_7_1(t *testing.T) {

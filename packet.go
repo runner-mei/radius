@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
+	"strconv"
 )
 
 // maximum RADIUS packet size
@@ -282,6 +283,18 @@ func (p *Packet) PAP() (username, password string, ok bool) {
 	}
 	ok = true
 	return
+}
+
+func (p *Packet) GetAttributes() map[string]interface{} {
+	var results = map[string]interface{}{}
+	for _, attr := range p.Attributes {
+		if name, ok := p.Dictionary.Name(attr.Type); ok {
+			results[name] = attr.Value
+		} else {
+			results["unknown_"+strconv.FormatInt(int64(attr.Type), 10)] = attr.Value
+		}
+	}
+	return results
 }
 
 // Encode encodes the packet to wire format. If there is an error encoding the

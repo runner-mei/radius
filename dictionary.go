@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"sync"
 	//	"io"
@@ -137,6 +138,7 @@ func (d *Dictionary) LoadDicts(path string) {
 		fmt.Println(path, " not existed")
 		return
 	}
+
 	inFile, _ := os.Open(path)
 	defer inFile.Close()
 	scanner := bufio.NewScanner(inFile)
@@ -146,13 +148,20 @@ func (d *Dictionary) LoadDicts(path string) {
 		line := strings.TrimSpace(scanner.Text())
 		arr := strings.Fields(line)
 
-		if d.ParseAttrs(arr) != true {
-			if d.ParseVendor(arr) != true {
-				if d.ParseBeginVendor(arr) != true {
-					d.ParseEndVendor(arr)
-				}
-			}
+		if d.ParseAttrs(arr) {
+			continue
 		}
+		if d.ParseVendor(arr) {
+			continue
+		}
+		if d.ParseBeginVendor(arr) {
+			continue
+		}
+		if d.ParseEndVendor(arr) {
+			continue
+		}
+
+		log.Println("[DICT] parse line fail in ", path, "-", line)
 	}
 }
 
